@@ -1,0 +1,10 @@
+cpu: model=$CPU, reset_on_triple_fault=0, count=$NR_CPUS, ips=10000000
+megs: 2048
+ata0-slave: type=cdrom, path=$ISO, status=inserted
+boot: cdrom
+port_e9_hack: enabled=1
+com1: enabled=1, mode=file, dev=/dev/stdout
+#e1000: enabled=1, mac=52:54:00:12:34:56, ethmod=slirp
+#display_library: nogui
+#error: action=fatal
+panic: action=fatal

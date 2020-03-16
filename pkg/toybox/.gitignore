@@ -1,0 +1,9 @@
+syntax: glob
+.config*
+.single*
+change/
+kconfig/mconf
+kconfig/conf
+kconfig/*.c
+toybox
+toybox_unstripped

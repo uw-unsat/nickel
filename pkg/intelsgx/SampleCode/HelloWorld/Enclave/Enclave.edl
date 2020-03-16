@@ -1,0 +1,9 @@
+enclave {
+    trusted {
+        public int ecall_helloworld(void);
+    };
+
+    untrusted {
+        void ocall_print([in, string]const char* str);
+    };
+};

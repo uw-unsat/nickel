@@ -1,0 +1,2 @@
+
+bool check_invariants();

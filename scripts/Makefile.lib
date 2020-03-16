@@ -1,0 +1,138 @@
+# tools
+# ---------------------------------------------------------------------------
+
+V               = @
+Q               = $(V:1=)
+QUIET_CC        = $(Q:@=@echo    '     CC       '$@;)
+QUIET_CXX       = $(Q:@=@echo    '     CXX      '$@;)
+QUIET_IRPY      = $(Q:@=@echo    '     IRPY     '$@;)
+QUIET_AR        = $(Q:@=@echo    '     AR       '$@;)
+QUIET_LD        = $(Q:@=@echo    '     LD       '$@;)
+QUIET_GEN       = $(Q:@=@echo    '     GEN      '$@;)
+QUIET_PY2       = $(Q:@=@echo    '     PY2      '$@;)
+QUIET_PY3       = $(Q:@=@echo    '     PY3      '$@;)
+QUIET_CPP       = $(Q:@=@echo    '     CPP      '$@;)
+QUIET_COQC      = $(Q:@=@echo    '     COQC     '$@;)
+
+
+MKDIR_P         := mkdir -p
+LN_S            := ln -s
+UNAME_S         := $(shell uname -s)
+TOP             := $(shell echo $${PWD-`pwd`})
+HOST_CC         := cc
+PY2             := python2
+PY3             := python3
+
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+$(eval $(ARGS):;@:)
+
+# try the latest version first
+LLVM_CONFIG     := llvm-config-5.0
+ifeq ($(shell which $(LLVM_CONFIG) 2> /dev/null),)
+LLVM_CONFIG     := llvm-config
+endif
+# Homebrew hides llvm here
+ifeq ($(shell which $(LLVM_CONFIG) 2> /dev/null),)
+LLVM_CONFIG     := /usr/local/opt/llvm/bin/llvm-config
+endif
+ifeq ($(shell which $(LLVM_CONFIG) 2> /dev/null),)
+LLVM_PREFIX     :=
+else
+LLVM_PREFIX     := "$(shell $(LLVM_CONFIG) --bindir)/"
+endif
+
+# We need 16-byte stack alignment for SSE instructions, which should
+# be default according to the x86-64 ABI.  But clang on Linux sometimes
+# generates non-conforming code and causes crashes (e.g., gate-test).
+# Let's make this requirement explicit for clang.
+LLVM_CC         := $(LLVM_PREFIX)clang -target $(ARCH)-linux-gnu -mstack-alignment=4
+LLVM_HOST_CC    := $(LLVM_PREFIX)clang
+LLVM_LINK       := $(LLVM_PREFIX)llvm-link
+LLVM_OBJDUMP    := $(LLVM_PREFIX)llvm-objdump
+
+ifeq ($(UNAME_S),Darwin)
+USE_CLANG       ?= 1
+TOOLPREFIX      ?= $(ARCH)-linux-gnu-
+endif
+
+ifeq ($(USE_CLANG),1)
+CC              := $(LLVM_CC)
+else
+CC              := $(TOOLPREFIX)gcc
+endif
+LD              := $(TOOLPREFIX)ld
+AR              := $(TOOLPREFIX)ar
+RANLIB          := $(TOOLPREFIX)ranlib
+NM              := $(TOOLPREFIX)nm
+OBJCOPY         := $(TOOLPREFIX)objcopy
+OBJDUMP         := $(TOOLPREFIX)objdump
+GDB             := $(TOOLPREFIX)gdb
+
+ifeq ($(USE_CCACHE),1)
+CC              := ccache $(CC)
+endif
+
+# files
+# ---------------------------------------------------------------------------
+
+object          = $(addprefix $(O)/,$(patsubst %.c,%.o,$(patsubst %.S,%.o,$(patsubst %.s,%.o,$(filter-out %/asm-offsets.c %.lds.S,$(1))))))
+
+rwildcard       = $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+
+# ASM offsets
+# ---------------------------------------------------------------------------
+
+# Default sed regexp - multiline due to syntax constraints
+#
+# Use [:space:] because LLVM's integrated assembler inserts <tab> around
+# the .ascii directive whereas GCC keeps the <space> as-is.
+define sed-offsets
+        's:^[[:space:]]*\.ascii[[:space:]]*"\(.*\)".*:\1:; \
+        /^->/{s:->#\(.*\):/* \1 */:; \
+        s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; \
+        s:->::; p;}'
+endef
+
+define gen-offsets
+        (set -e; \
+         echo "/*"; \
+         echo " * DO NOT MODIFY."; \
+         echo " *"; \
+         echo " * This file was automatically generated."; \
+         echo " */"; \
+         echo ""; \
+         echo "#pragma once"; \
+         echo ""; \
+         sed -ne $(sed-offsets) )
+endef
+
+# Bochs
+# ---------------------------------------------------------------------------
+
+# usage: $(call try-run,cmd,option-ok,otherwise)
+__try-run = set -e;                     \
+        if ($(1)) >/dev/null 2>&1;      \
+        then echo "$(2)";               \
+        else echo "$(3)";               \
+        fi
+
+try-run = $(shell $(__try-run))
+
+# usage: $(call bochs-option,option,option-ok,otherwise)
+bochs-option = $(call try-run,$(BOCHS) --help 2>&1 | grep -- $(1),$(2),$(3))
+
+define run-bochs
+        CPU=$(BOCHS_CPU) NR_CPUS=$(NR_CPUS) ISO=$< \
+        $(BOCHS) -q -f boot/bochsrc $(call bochs-option,-rc,-rc boot/bochs.dbg) || true
+endef
+
+# ISO
+# ---------------------------------------------------------------------------
+
+define gen-iso
+        cp -r boot/isolinux $(@D)/iso/
+        $(LN_S) $(realpath $(KERNEL))$(if $(INITRD), $(realpath $(INITRD))) $(@D)/iso/
+        mkisofs -r -f -o $@~ -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table $(@D)/iso
+        boot/isohybrid.pl $@~
+        mv $@~ $@
+endef

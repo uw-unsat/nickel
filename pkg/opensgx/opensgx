@@ -1,0 +1,93 @@
+#! /bin/bash
+ROOT=$(dirname "$0")
+SGXTOOL=$ROOT/user/sgx-tool
+SGX=$ROOT/sgx
+DEVICEKEY=$ROOT/user/conf/device.key
+SGXRUNTIME=$ROOT/user/sgx-runtime
+GDBPORT=-1
+
+key_gen() {
+  FILENAME=sign.key
+  $SGXTOOL -k 3072 > $FILENAME
+}
+
+compile_code() {
+  BASEDIR=$(dirname $1)
+  SUBDIR=${BASEDIR#*/}
+  BASENAME=$(basename $1)
+  NAME="${BASENAME%.*}"
+
+  cd user
+  make $SUBDIR/$NAME.sgx
+}
+
+run_enclave() {
+  $SGX $SGXRUNTIME $@
+}
+
+run_enclave_with_icount() {
+  $SGX -i $SGXRUNTIME $@
+}
+
+debug_enclave() {
+  $SGX -g $GDBPORT $SGXRUNTIME $@
+}
+
+measure() {
+  $SGXTOOL -m $1
+}
+
+sign() {
+  BASEDIR=$(dirname $1)
+  BASENAME=$(basename $1)
+  NAME="${BASENAME%.*}"
+  MEASURE=$BASEDIR/$NAME-measurement.conf
+  SIG=$BASEDIR/$NAME-sig.conf
+  TOKEN=$BASEDIR/$NAME-token.conf
+  CONF=$BASEDIR/$NAME.conf
+
+  touch $CONF
+  measure $1 > $MEASURE
+
+  $SGXTOOL -S $MEASURE > $SIG
+  $SGXTOOL -s $SIG --key=$2 > $CONF
+  $SGXTOOL -E $CONF > $TOKEN
+  $SGXTOOL -M $TOKEN --key=$DEVICEKEY >> $CONF
+
+  rm $MEASURE $SIG $TOKEN
+}
+
+case "$1" in
+  -k|--key)
+  key_gen
+  ;;
+  -c|--compile)
+  compile_code $2
+  ;;
+  -m|--measure)
+  measure $2
+  ;;
+  -s|--sign)
+  case "$3" in
+    -k|--key)
+    sign $2 $4
+    ;;
+  esac
+  ;;
+  -i|--icount)
+  shift
+  run_enclave_with_icount $@
+  ;;
+  -t|--test)
+  shift
+  run_enclave $@
+  ;;
+  -d|--debug)
+  GDBPORT=$2
+  shift; shift
+  debug_enclave $@
+  ;;
+  *)
+  run_enclave $@
+  ;;
+esac

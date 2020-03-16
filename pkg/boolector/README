@@ -1,0 +1,94 @@
+Boolector 1.5.118 
+
+Sat Oct 13 13:59:09 CEST 2012
+
+Source code release of Boolector. 
+
+Boolector is an efficient SMT solver for the quantifier-free theory of
+bit-vectors in combination with the quantifier-free extensional theory of
+arrays.
+
+For compilation please obtain the latest source code of Lingeling from
+  
+  http://fmv.jku.at/lingeling
+
+Then extract from the archive the Lingeling sources in the same directory
+in which you extracted the Boolector sources.  Rename or link the
+Lingeling source directory to 'lingeling'.  Then compile Lingeling.
+
+  For version al6 of Lingeling this works as follows:
+
+  cd <directory-where-you-extracted-boolector-sources>
+  wget http://fmv.jku.at/lingeling/lingeling-al6-080d45d-120922.tar.gz
+  tar xf lingeling-al6-080d45d-120922.tar.gz
+  ln -s  lingeling-al6-080d45d-120922 lingeling
+  cd lingeling
+  ./configure
+  make
+
+In the same way you can optionally include version 953 of PicoSAT:
+
+  cd <directory-where-you-extracted-boolector-sources>
+  wget http://fmv.jku.at/picosat/picosat-953.tar.gz
+  tar xf picosat-953.tar.gz
+  ln -s picosat-953 picosat
+  cd picosat
+  ./configure -O           # this will improve performance
+  make
+
+For additionally using MiniSAT as back-end do the following:
+
+  cd <directory-where-you-extracted-boolector-sources>
+  git clone https://github.com/niklasso/minisat.git
+  cd minisat
+  make
+
+You need Lingeling, while PicoSAT and MiniSAT are optional.
+
+Then issue
+
+  ./configure
+  make
+
+or
+  
+  ./configure -precosat
+  make
+
+Using MiniSAT will force 'libboolector.a' to depend not only on
+'libz.so' but also on 'libstdc++.so'.  Thus if you want to link
+'libboolector.a' with MiniSAT backend against your own programs,
+then you need to use '-lz -lstdc++' as linking options.
+
+This will produce the library 'libboolector.a' with its API
+'boolector.h', the stand-alone SMT solver 'boolector', a
+simple delta debugger 'deltabtor', and a small tool 'synthebtor',
+which can be used to synthesize AIGs in Aiger format from BV.
+
+In the 'examples' sub-directory you find two examples for using
+the API, which are also described in the API documentation.  You 
+can generate the documentation on the API with 'doxygen'.  Run
+
+  doxygen
+
+in the top level source directory.  Then point your browser at
+
+  doc/html/index.html 
+
+You may find more information on Booleactor at the website
+
+ http://fmv.jku.at/boolector
+
+See the COPYING file for license and copying information.
+
+In particular, this version of Boolector uses GPL. 
+In essence you can not distribute a program that uses
+this version of Boolector unless you make your program
+available under GPL as well.  If you need another license
+in order to use Boolector as part of a program which
+is not going to be distributed under GPL, please contact
+Armin Biere <biere@jku.at>.
+
+Robert Daniel Brummayer, Armin Biere,
+Johannes Kepler University.
+Linz, Austria, 2010.

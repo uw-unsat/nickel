@@ -1,0 +1,93 @@
+news for release 1.5.118 since 1.5.116
+--------------------------------------
+* '--solver=...' command line option and 'boolector_set_sat_solver'
+* delayed Lingeling preprocessing using 'simpdelay'
+
+news for release 1.5.116 since 1.5.115
+--------------------------------------
+* examples compilable again
+* fixed assertions in 'booolector.c'
+* support for new reentrant PicoSAT API (since PicoSAT version 953)
+
+news for release 1.5.115 since 1.5.13
+------------------------------------
+* added 'bvcomp'
+* boolean top-level skeleton simplification
+* use of 'lglclone' in incremental mode
+* added some more rewriting
+* removed 3VL code
+* removed PrecoSAT, basicbtor
+* in-depth, look-ahead, interval
+* incremental SMTLIB1 interface
+* added MiniSAT support
+* rebuilding AIGs / Expressions
+* more compact SMTLIB1 parsing
+* symbolic lemmas instead of direct CNF encoding
+* more compact AIG to CNF translation
+* gzip/bzip2/7z compressed input files
+* time out option
+* SMTLIB 2 support
+
+news for release 1.5.13 since 1.4.1
+----------------------------------
+* new incremental mode for multiple formulas in SMT benchmarks
+* integration of MiniSAT
+* SMT parser demotes logic if possible
+* better control of best suitable solver in main application
+* generic incremental SAT glue logic
+* integration of Lingeling
+
+news for release 1.4.1 since 1.4
+--------------------------------
+* MacOS port
+* disabled unconstrained optimization
+
+news for release 1.4 since 1.3
+------------------------------
+* hid API change in 'picosat_add' for older version of PicoSAT
+* fixed EOF issue reading an empty file from stdin
+* removed old license references
+
+news for release 1.3 since 1.2
+------------------------------
+* first source code release
+* fixed a rewriting bug by uncommenting simplification code
+
+news for release 1.2 since 1.1
+------------------------------
+* improved rewriting 
+* PrecoSAT now standard solver for non-incremental usage, 
+  PicoSAT used otherwise
+
+news for release 1.1 since 1.0
+------------------------------
+* improved handling of unconstrained variables and arrays
+* improved rewriting engine
+* removed command line switch for refinement limit
+* fixed bug where Boolector could report 'unknown' in regular (non-bmc) mode
+* fixed minor caching problem on AIG layer 
+* fixed other bugs
+
+news for release 1.0 since 0.7
+------------------------------
+* public C API
+* documentation and examples
+* improved SMT parser (:formula can now be an fvar).
+
+news for release 0.7 since 0.6
+------------------------------
+* fixed model generation bugs
+* improved under-approximation
+* added support for bvcomp (SMT-LIB)
+
+news for release 0.6 since 0.5
+------------------------------
+* fixed model generation bugs
+* fixed rewriting bug
+* support for new under-approximation techniques
+
+news for release 0.5 since 0.4
+------------------------------
+* faster model generation
+* support for array models
+* support for under-approximation techniques for bit-vector variables and reads

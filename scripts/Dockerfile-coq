@@ -1,0 +1,6 @@
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get install -y opam git m4
+RUN opam init -a
+RUN opam install -y coq
+

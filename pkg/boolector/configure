@@ -1,0 +1,326 @@
+#!/bin/sh
+
+debug=unknown
+check=no
+flto=no
+static=no
+lingeling=yes
+minisat=unknown
+picosat=unknown
+arch=unknown
+
+onlylingeling=no
+onlyminisat=no
+onlypicosat=no
+
+#--------------------------------------------------------------------------#
+
+die () {
+  echo "*** configure: $*" 1>&2
+  exit 1
+}
+
+msg () {
+  echo "[configure] $*"
+}
+
+#--------------------------------------------------------------------------#
+
+usage () {
+cat <<EOF
+usage: ./configure [<option> ...]
+
+where <option> is one of the following:
+
+  -O                optimized compilation (default)
+  -flto             enable link time optimization
+  -static           static compilation
+  -g                compile with debugging support
+  -c                check assertions even in optimized compilation
+  -m{32,64}         force 32-bit or 64-bit compilation
+
+By default all supported SAT solvers are used and linked into
+the binary if they can be found in the parent directory.
+
+By specifying one of them 'configure' fails if it can not be used.
+
+  --lingeling       use and link with Lingeling (default)
+  --picosat         use and link with PicoSAT
+  --minisat         use and link with MiniSAT
+
+Disable compilation of specific SAT solver back-ends:
+
+  --no-lingeling    do not use Lingeling
+  --no-picosat      do not use PicoSAT
+  --no-minisat      do not use MiniSAT
+
+  --only-lingeling  only use Lingeling
+  --only-picosat    only use PicoSAT
+  --only-minisat    only use MiniSAT
+EOF
+  exit 0
+}
+
+#--------------------------------------------------------------------------#
+
+while [ $# -gt 0 ]
+do
+  case $1 in
+    -g) debug=yes;;
+    -O) debug=no;;
+    -c) check=yes;;
+    -m32|--m32) arch=32;;
+    -m64|--m64) arch=64;;
+    -flto) flto=yes;;
+    -static) static=yes;;
+    -picosat|--picosat) picosat=yes;;
+    -no-picosat|--no-picosat) picosat=no;;
+    -lingeling|--lingeling) lingeling=yes;;
+    -no-lingeling|--no-lingeling) lingeling=no;;
+    -only-lingeling|--only-lingeling) lingeling=yes;minisat=no;picosat=no;;
+    -only-picosat|--only-picosat) lingeling=no;minisat=no;picosat=yes;;
+    -only-minisat|--only-minisat) lingeling=no;minisat=yes;picosat=no;;
+    -minisat|--minisat) minisat=yes;;
+    -no-minisat|--no-minisat) minisat=no;;
+    -h|-help|--help) usage;;
+    -*) die "invalid option '$1' (try '-h')";;
+  esac
+  shift
+done
+
+#--------------------------------------------------------------------------#
+
+addstcpp () {
+  if [ X"`echo "$LIBS" | grep 'lstdc++'`" = X ]
+  then
+    [ X"$LIBS" = X ] || LIBS="$LIBS "
+    LIBS="${LIBS}-lstdc++"
+    msg "need to link against 'libstdc++'"
+  fi
+}
+
+#--------------------------------------------------------------------------#
+
+if [ $debug = yes ]
+then
+  msg "compiling for debugging"
+else
+  msg "optimized compilation without debugging symbols"
+fi
+
+if [ X"$CFLAGS" = X ]
+then
+  [ $debug = unknown ] && debug=no
+  CFLAGS="-W -Wall -Wextra"
+  [ $arch = 32 ] && CFLAGS="$CFLAGS -m32"
+  [ $arch = 64 ] && CFLAGS="$CFLAGS -m64"
+  [ $static = yes ] && CFLAGS="$CFLAGS -static"
+  if [ $debug = yes ]
+  then
+    CFLAGS="$CFLAGS -g3 -ggdb"
+  else
+    CFLAGS="$CFLAGS -O3"
+    [ $check = no ] && CFLAGS="$CFLAGS -DNDEBUG"
+    [ $flto = yes ] && CFLAGS="$CFLAGS -flto"
+  fi
+elif [ $debug = yes ]
+then
+  die "CFLAGS environment variable defined and '-g' used"
+elif [ $debug = no ]
+then
+  die "CFLAGS environment variable defined and '-O' used"
+fi
+
+#--------------------------------------------------------------------------#
+
+LIBS=""
+OBJS=""
+
+LIBZ=no
+LIBM=no
+LIBSTDCPP=no
+
+#--------------------------------------------------------------------------#
+
+if [ $picosat = no ]
+then
+  msg "not using PicoSAT"
+else
+
+  if [ -d ../picosat ]
+  then
+    for path in ../picosat/picosat.o ../picosat/version.o allfound
+    do
+      [ -f $path ] || break
+    done
+  else
+    path=../picosat
+  fi
+
+  if [ $path = allfound ]
+  then
+    msg "using PicoSAT in '../picosat'"
+    [ X"$OBJS" = X ] || OBJS="$OBJS "
+    picosat=yes
+  elif [ $picosat = yes ]
+  then
+    die "impossible to use PicoSAT: '$path' missing"
+  else
+    msg "disabling PicoSAT: '$path' missing"
+    picosat=no
+  fi
+
+  if [ $picosat = yes ]
+  then
+    [ X"$CFLAGS" = X ] || CFLAGS="$CFLAGS "
+    [ X"$OBJS" = X ] || OBJS="$OBJS "
+    CFLAGS="${CFLAGS}-DBTOR_USE_PICOSAT"
+    OBJS="${OBJS}../picosat/picosat.o ../picosat/version.o"
+  fi
+fi
+
+#--------------------------------------------------------------------------#
+
+if [ $lingeling = no ]
+then
+  msg "not using Lingeling as requested by command line option"
+else
+
+  if [ -d ../lingeling ]
+  then
+    for path in ../lingeling/lglib.h ../lingeling/liblgl.a allfound
+    do
+      [ -f $path ] || break
+    done
+  else
+    path=../lingeling
+  fi
+
+  if [ $path = allfound ]
+  then
+    msg "using Lingeling in '../lingeling'"
+    lingeling=yes
+  elif [ $lingeling = yes ]
+  then
+    die "impossible to use Lingeling: '$path' missing"
+  else
+    msg "disabling Lingeling: '$path' missing"
+    lingeling=no
+  fi
+
+  if [ $lingeling = yes ]
+  then
+    [ X"$CFLAGS" = X ] || CFLAGS="$CFLAGS "
+    [ X"$LDEPS" = X ] || LDEPS="$LDEPS "
+    [ X"$LIBS" = X ] || LIBS="$LIBS "
+    CFLAGS="${CFLAGS}-DBTOR_USE_LINGELING"
+    LIBS="${LIBS}-L../lingeling -llgl"
+    LDEPS="${LDEPS}../lingeling/liblgl.a"
+    LIBM=yes
+  fi
+
+fi
+
+#--------------------------------------------------------------------------#
+
+if [ $minisat = no ]
+then
+  msg "not using MiniSAT"
+else
+
+  for path in \
+    ../minisat \
+    ../minisat/minisat \
+    ../minisat/minisat/simp \
+    ../minisat/build/release \
+    allfound
+  do
+    [ -d $path ] || break
+  done
+
+  if [ $path = allfound ]
+  then
+    for path in \
+      ../minisat/minisat/simp/SimpSolver.h \
+      ../minisat/build/release/lib/libminisat.a \
+      allfound
+    do
+      [ -f $path ] || break
+    done
+  fi
+
+  if [ $path = allfound ]
+  then
+    msg "using MiniSAT in '../minisat'"
+    minisat=yes
+  elif [ $minisat = yes ]
+  then
+    die "impossible to use MiniSAT: '$path' missing"
+  else
+    msg "disabling MiniSAT: '$path' missing"
+  fi
+
+  if [ $minisat = yes ]
+  then
+    [ X"$CFLAGS" = X ] || CFLAGS="$CFLAGS "
+    [ X"$OBJS" = X ] || OBJS="$OBJS "
+    [ X"$LDEPS" = X ] || LDEPS="$LDEPS "
+    [ X"$LIBS" = X ] || LIBS="$LIBS "
+    CFLAGS="${CFLAGS}-DBTOR_USE_MINISAT -I../minisat"
+    OBJS="${OBJS}btorminisat.o"
+    LIBS="${LIBS}-L../minisat/build/release/lib -lminisat"
+    LDEPS="${LDEPS}../minisat/build/release/lib/libminisat.a"
+    LIBSTDCPP=yes
+    LIBZ=yes
+  fi
+
+fi
+
+#--------------------------------------------------------------------------#
+
+[ $picosat = no -a $lingeling = no -a $minisat = no ] && \
+  die "either need MiniSAT, PicoSAT or Lingeling"
+
+#--------------------------------------------------------------------------#
+
+
+if [ $LIBSTDCPP = yes ]
+then
+  [ X"$LIBS" = X ] || LIBS="$LIBS "
+  LIBS="${LIBS}-lstdc++"
+  msg "linking against 'libstdc++'"
+fi
+
+if [ $LIBZ = yes ]
+then
+  [ X"$LIBS" = X ] || LIBS="$LIBS "
+  LIBS="${LIBS}-lz"
+  msg "linking against 'libz'"
+fi
+
+if [ $LIBM = yes ]
+then
+  [ X"$LIBS" = X ] || LIBS="$LIBS "
+  LIBS="${LIBS}-lm"
+  msg "linking against 'libm'"
+fi
+
+#--------------------------------------------------------------------------#
+
+[ "X$CC" = X ] && CC=gcc
+
+msg "CC=$CC"
+msg "CFLAGS=$CFLAGS"
+msg "LIBS=$LIBS"
+msg "OBJS=$OBJS"
+
+rm -f makefile
+sed \
+  -e "s,@CC@,$CC," \
+  -e "s,@INCS@,$INCS," \
+  -e "s,@CFLAGS@,$CFLAGS," \
+  -e "s,@LIBS@,$LIBS," \
+  -e "s,@LDEPS@,$LDEPS," \
+  -e "s,@OBJS@,$OBJS," \
+  makefile.in > makefile
+msg "makefile generated"

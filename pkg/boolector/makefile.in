@@ -1,0 +1,40 @@
+.SUFFIXES: .o .c .cc
+.c.o:
+	$(CC) $(CFLAGS) -c $<
+.cc.o:
+	$(CC) $(CFLAGS) -c $<
+MAKEFLAGS=-j $(if $(CORES),$(CORES),1)
+CC=@CC@
+INCS=@INCS@
+CFLAGS=@CFLAGS@
+OBJS=@OBJS@
+LIBS=@LIBS@
+LDEPS=@LDEPS@
+VERSION=$(shell cat VERSION)
+LIBOBJ= $(addsuffix .o,$(basename $(wildcard btor*.c))) boolector.o $(OBJS)
+SRC=$(shell ls *.c *.h *.cc)
+all: libboolector.a boolector synthebtor deltabtor
+-include dependencies
+analyze:
+	clang --analyze $(CFLAGS) $(SRC)
+dependencies: btorconfig.h $(SRC) makefile
+	rm -f $@; $(CC) $(CFLAGS) -MM *.c|sed -e 's,:,: makefile,'>$@
+boolector: boolectormain.o libboolector.a $(LDEPS)
+	$(CC) $(CFLAGS) -o $@ boolectormain.o -L. -lboolector $(LIBS)
+synthebtor: synthebtor.o libboolector.a $(LDEPS)
+	$(CC) $(CFLAGS) -o $@ synthebtor.o -L. -lboolector $(LIBS)
+deltabtor: deltabtor.c makefile $(LDEPS)
+	$(CC) $(CFLAGS) -o $@ deltabtor.c
+libboolector.a: $(LIBOBJ)
+	rm -f $@
+	ar rc $@ $(LIBOBJ)
+	ranlib $@
+btorconfig.h: makefile VERSION mkconfig
+	rm -f $@; ./mkconfig > $@
+clean:
+	rm -f boolector deltabtor synthebtor
+	rm -f dependencies makefile btorconfig.h
+	rm -f *.gcda *.gcno *.gcov  *.gch *.plist
+	rm -f log/*.log *.tmp
+	rm -f *.o *.a
+.PHONY: all analyze clean
